@@ -1,0 +1,60 @@
+package org.example;
+import java.util.List;
+import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.AriaRole;
+
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
+
+public class App {
+    private static class CurrentUser {
+        public String getEmail() {
+            return "here is real mail for login in YTube";
+        }
+
+        public String getPassword() {
+            return "here is real password for login in YTube";
+        }
+    }
+
+    public static void main(String[] args) {
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.firefox().launch(new BrowserType.LaunchOptions().setHeadless(false).setSlowMo(500));
+            BrowserContext context = browser.newContext();
+            Page page = context.newPage();
+
+            //page.navigate("https://www.youtube.com");
+            //page.navigate("https://www.youtube.com/results?search_query=hrafov+yevhen");
+            page.navigate("https://www.youtube.com/results?search_query=коновальчук");
+
+            page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Sign in")).click();
+            assertThat(page.locator("h1")).hasText("Sign in");
+            page.getByLabel("Email or phone").fill(new CurrentUser().getEmail());
+            page.locator("span").getByText("Next").click();
+            page.getByLabel("Enter your password").fill(new CurrentUser().getPassword());
+            page.locator("span").getByText("Next").click();
+
+            page.waitForTimeout(20000);
+
+            // Get all video links on the page
+            List<String> videoLinks = (List<String>) page.locator("a#video-title").evaluateAll(
+                    "links => links.map(link => link.href)");
+            System.out.println("--- videoLinks.size() = " + videoLinks.size()); // for testing
+
+            int linkNumber = 1;
+            for (String link : videoLinks) {
+                page.navigate(link);
+                System.out.println("----- linkNumber = " + linkNumber);
+                linkNumber++;
+                // Wait for the "Like" button to be visible and click it
+//                page.waitForSelector("ytd-toggle-button-renderer[id=\"like-button\"]");
+//                page.click("ytd-toggle-button-renderer[id=\"like-button\"]");
+                page.waitForSelector("button[title=\"I like this\"]"); //not working here because string is "I like this 1.9..."
+                page.click("button[title=\"I like this\"]");
+
+                // Optionally, wait for a while before going to the next video
+                page.waitForTimeout(20000);
+                //break; //for testing
+            }
+        }
+    }
+}
